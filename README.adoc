@@ -6,8 +6,8 @@
 
 # Workflow
 
-image:https://badge.fury.io/rb/workflow.svg[link=https://badge.fury.io/rb/workflow]
-image:https://travis-ci.org/geekq/workflow.svg[link=https://travis-ci.org/geekq/workflow]
+image:https://img.shields.io/gem/v/workflow.svg[link=https://rubygems.org/gems/workflow]
+image:https://github.com/geekq/workflow/actions/workflows/test.yml/badge.svg[link=https://github.com/geekq/workflow/actions/workflows/test.yml]
 image:https://codeclimate.com/github/geekq/workflow/badges/gpa.svg[link=https://codeclimate.com/github/geekq/workflow]
 image:https://codeclimate.com/github/geekq/workflow/badges/coverage.svg[link=https://codeclimate.com/github/geekq/workflow/coverage]
 
@@ -15,15 +15,6 @@ Note: you can find documentation for specific workflow rubygem versions
 at http://rubygems.org/gems/workflow : select a version (optional,
 default is latest release), click "Documentation" link. When reading on
 github.com, the README refers to the upcoming release.
-
-**Note: Workflow 2.0 is a major refactoring of the library.
-For different options/troubleshooting using it with your Rails application see
-link:#activerecord[State persistence with ActiveRecord].**
-
-Note for contributors: it looks like github closed all the pull requests after
-I had changed the default branch on 2019-01-12. Please check the new refactored
-workflow 2.0, complementing workflow-activerecord and recreate your pull
-request if needed.
 
 toc::[]
 
@@ -111,7 +102,7 @@ article.current_state.between? :awaiting_review, :rejected # => true
 ```
 
 Now we can call the submit event, which transitions to the
-<tt>:awaiting_review</tt> state:
+`:awaiting_review` state:
 
 ```rb
 article.submit!
@@ -140,7 +131,7 @@ gem install workflow
 install the `activesupport` and `ruby-graphviz` gems.
 
 Versions up to and including 1.0.0 are also available as a single file download -
-[lib/workflow.rb file](https://github.com/geekq/workflow/blob/v1.0.0/lib/workflow.rb).
+link:https://github.com/geekq/workflow/blob/v1.0.0/lib/workflow.rb[lib/workflow.rb file].
 
 
 === Examples
@@ -354,43 +345,6 @@ favorite database.
 Advanced usage
 --------------
 
-### Accessing your workflow specification
-
-You can easily reflect on workflow specification programmatically - for
-the whole class or for the current object. Examples:
-
-```rb
-article2.current_state.events # lists possible events from here
-article2.current_state.events[:reject].transitions_to # => :rejected
-
-Article.workflow_spec.states.keys
-#=> [:rejected, :awaiting_review, :being_reviewed, :accepted, :new]
-
-Article.workflow_spec.state_names
-#=> [:rejected, :awaiting_review, :being_reviewed, :accepted, :new]
-
-# list all events for all states
-Article.workflow_spec.states.values.collect &:events
-```
-
-You can also store and later retrieve additional meta data for every
-state and every event:
-
-```rb
-class MyProcess
-  include Workflow
-  workflow do
-    state :main, :meta => {:importance => 8}
-    state :supplemental, :meta => {:importance => 1}
-  end
-end
-puts MyProcess.workflow_spec.states[:supplemental].meta[:importance] # => 1
-```
-
-The workflow library itself uses this feature to tweak the graphical
-representation of the workflow. See below.
-
-
 ### Conditional event transitions
 
 Conditions can be a "method name symbol" with a corresponding instance method, a `proc` or `lambda` which are added to events, like so:
@@ -416,6 +370,8 @@ When calling a `device.can_<fire_event>?` check, or attempting a `device.<event>
 * If an `:if` check is present, proceed if it evaluates to true, or drop to the next event.
 * If you've run out of events to check (eg. `battery_level == 0`), then the transition isn't possible.
 
+You can also pass additional arguments, which can be evaluated by :if methods or procs. See examples in
+link:test/conditionals_test.rb#L45[conditionals_test.rb]
 
 ### Advanced transition hooks
 
@@ -496,10 +452,59 @@ The whole event sequence is as follows:
     * event specific action
     * on_transition (if action did not halt)
     * on_exit
-    * PERSIST WORKFLOW STATE, i.e. transition
+    * PERSIST WORKFLOW STATE (i.e. transition) or on_error
     * on_entry
     * after_transition
 
+
+### Accessing your workflow specification
+
+You can easily reflect on workflow specification programmatically - for
+the whole class or for the current object. Examples:
+
+```rb
+article2.current_state.events # lists possible events from here
+article2.current_state.events[:reject].transitions_to # => :rejected
+
+Article.workflow_spec.states.keys
+#=> [:rejected, :awaiting_review, :being_reviewed, :accepted, :new]
+
+Article.workflow_spec.state_names
+#=> [:rejected, :awaiting_review, :being_reviewed, :accepted, :new]
+
+# list all events for all states
+Article.workflow_spec.states.values.collect &:events
+```
+
+You can also store and later retrieve additional meta data for every
+state and every event:
+
+```rb
+class MyProcess
+  include Workflow
+  workflow do
+    state :main, :meta => {:importance => 8}
+    state :supplemental, :meta => {:importance => 1}
+  end
+end
+puts MyProcess.workflow_spec.states[:supplemental].meta[:importance] # => 1
+```
+
+The workflow library itself uses this feature to tweak the graphical
+representation of the workflow. See below.
+
+
+### Defining workflow dynamically from JSON
+
+For an advance example please see
+link:https://github.com/geekq/workflow/blob/develop/test/workflow_from_json_test.rb[workflow_from_json_test.rb].
+
+
+### Compose workflow definition with `include`
+
+In case you have very extensive workflow definition or would like to reuse
+workflow definition for different classes, you can include parts like in
+the link:https://github.com/geekq/workflow/blob/develop/test/main_test.rb#L95-L110[`including a child workflow definition` example].
 
 Documenting with diagrams
 -------------------------
@@ -517,29 +522,6 @@ namespace :doc do
   end
 end
 ```
-
-
-Changelog
----------
-
-### New in the version 2.0.2
-
-* finalize extraction of persistence adapters, remove remodel adapter
-
-### New in the version 2.0.1
-
-* retire Ruby 2.3 since it has reached end of live
-* fix #213 ruby-graphiz warnings
-
-### New in the version 2.0.0
-
-* extract Rails/ActiveRecord integration into a separate gem
-  workflow-activerecord
-* Remodel integration removed - needs to be a separate gem
-
-Special thanks to https://github.com/voltechs[voltechs] for implementing
-Rails 5 support and helping to revive `workflow`!
-
 
 Support, Participation
 ----------------------
@@ -560,6 +542,11 @@ bundle install
 bundle exec rake test
 ```
 
+### Check list for you pull request
+
+* [ ] unit tests for the new behavior provided: new tests fail without you change, all tests succeed with your change
+* [ ] documentation update included
+
 ### Other 3rd party libraries
 
 https://github.com/kwent/active_admin-workflow[ActiveAdmin-Workflow] - is an
@@ -569,7 +556,7 @@ integration with https://github.com/activeadmin/activeadmin[ActiveAdmin].
 
 Author: Vladimir Dobriakov, <https://infrastructure-as-code.de>
 
-Copyright (c) 2010-2019 Vladimir Dobriakov and Contributors
+Copyright (c) 2010-2024 Vladimir Dobriakov and Contributors
 
 Copyright (c) 2008-2009 Vodafone
 
@@ -578,4 +565,3 @@ Copyright (c) 2007-2008 Ryan Allen, FlashDen Pty Ltd
 Based on the work of Ryan Allen and Scott Barron
 
 Licensed under MIT license, see the MIT-LICENSE file.
-

@@ -2,7 +2,7 @@ require File.join(File.dirname(__FILE__), 'test_helper')
 
 $VERBOSE = false
 require 'workflow'
-require 'mocha/setup'
+require 'mocha/minitest'
 require 'stringio'
 #require 'ruby-debug'
 
@@ -92,7 +92,25 @@ class MainTest < Minitest::Test
     assert_equal 'one', c.new.current_state.to_s
   end
 
-  test 'multiple events with the same name and different arguments lists from different states'
+  test 'including a child workflow definition for composable workflows' do
+    child = Proc.new do
+      state :two
+    end
+
+    c = Class.new
+    c.class_eval do
+      include Workflow
+      workflow do
+        state :one
+        include child
+        state :three
+      end
+    end
+    assert_equal [:one, :two, :three], c.workflow_spec.states.keys
+  end
+
+  # TODO Consider following test case:
+  # test 'multiple events with the same name and different arguments lists from different states'
 
   test 'implicit transition callback' do
     args = mock()
@@ -327,42 +345,6 @@ class MainTest < Minitest::Test
     assert_equal false, human.can_go_to_college?
   end
 
-  test 'can_<fire_event>? with conditions' do
-    c = Class.new do
-      include Workflow
-      workflow do
-        state :off do
-          event :turn_on, :transitions_to => :on, :if => :sufficient_battery_level?
-          event :turn_on, :transitions_to => :low_battery, :if => proc { |obj| obj.battery > 0 }
-        end
-        state :on
-        state :low_battery
-      end
-      attr_reader :battery
-      def initialize(battery)
-        @battery = battery
-      end
-
-      def sufficient_battery_level?
-        @battery > 10
-      end
-    end
-
-    device = c.new 0
-    assert_equal false, device.can_turn_on?
-
-    device = c.new 5
-    assert device.can_turn_on?
-    device.turn_on!
-    assert device.low_battery?
-    assert_equal false, device.on?
-
-    device = c.new 50
-    assert device.can_turn_on?
-    device.turn_on!
-    assert device.on?
-  end
-
   test 'workflow graph generation' do
     require 'workflow/draw'
     Dir.chdir('/tmp') do
@@ -385,8 +367,7 @@ class MainTest < Minitest::Test
     yield
     $stdout
   ensure
-    captured, $stdout = $stdout, old_stdout
+    $stdout = old_stdout
   end
 
 end
-
